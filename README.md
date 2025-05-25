@@ -1,15 +1,24 @@
 # HyDE Search - Hypothetical Document Embeddings
 
-A modern C#/.NET 9 implementation of HyDE (Hypothetical Document Embeddings) search, which enhances traditional semantic search by generating hypothetical documents that would answer queries and using them to improve search relevance.
+A modern C#/.NET 9 **Web API** implementation of HyDE (Hypothetical Document Embeddings) search, which enhances traditional semantic search by generating hypothetical documents that would answer queries and using them to improve search relevance.
 
 ## Features
 
-- **HyDE Algorithm Implementation**: Combines traditional query-document similarity with hypothetical document generation
-- **High-Performance Vector Operations**: Uses `System.Numerics.Tensors` for efficient similarity calculations
-- **OpenAI Integration**: Leverages OpenAI's embedding and completion APIs
-- **Modern C# Architecture**: Built with dependency injection, async/await, and nullable reference types
-- **Configurable Search Parameters**: Customizable weights and thresholds
-- **Comprehensive Logging**: Structured logging with Microsoft.Extensions.Logging
+- **🌐 RESTful Web API**: ASP.NET Core minimal APIs with OpenAPI/Swagger documentation
+- **🔍 HyDE Algorithm Implementation**: Combines traditional query-document similarity with hypothetical document generation
+- **⚡ High-Performance Vector Operations**: Uses `System.Numerics.Tensors` for efficient similarity calculations
+- **🤖 OpenAI Integration**: Leverages OpenAI's embedding and completion APIs with fallback to mock services
+- **🏗️ Modern C# Architecture**: Built with dependency injection, async/await, and nullable reference types
+- **⚙️ Configurable Search Parameters**: Customizable weights and thresholds
+- **📝 Comprehensive Logging**: Structured logging with Microsoft.Extensions.Logging
+- **🚀 .NET Aspire Ready**: Configured for cloud-native deployment and orchestration
+- **🧪 Mock Services**: Built-in mock services for development and testing without OpenAI API
+
+## 📚 Documentation
+
+- **[Architecture Overview](docs/Architecture-Overview.md)** - Complete system architecture with C4 component model
+- **[Workflow Documentation](docs/HyDE-Search-Workflow.md)** - Detailed workflow diagrams and process flow
+- **[API Reference](#api-endpoints)** - RESTful endpoint documentation
 
 ## How HyDE Works
 
@@ -37,38 +46,93 @@ A modern C#/.NET 9 implementation of HyDE (Hypothetical Document Embeddings) sea
 
    **Option B: Environment Variable**
    ```bash
-   set OpenAI__ApiKey=your-openai-api-key-here
+   set OpenAI__ApiKey=your-openai-api-key-here### Quick Start
+
+1. **Clone and build**:
+   ```bash
+   git clone <repository-url>
+   cd sk-hybrid-search
+   dotnet build
    ```
 
-   **Option C: appsettings.json (Not recommended for production)**
-   ```json
-   {
-     "OpenAI": {
-       "ApiKey": "your-openai-api-key-here"
-     }
-   }
+2. **Run with mock services** (no OpenAI API key required):
+   ```bash
+   dotnet run
+   ```
+   The API will automatically use mock services and start on `http://localhost:5000`
+
+3. **Access the API**:
+   - **Swagger UI**: http://localhost:5000/swagger
+   - **API Root**: http://localhost:5000
+   - **Health Check**: http://localhost:5000/api/health
+
+4. **Optional: Configure OpenAI** (for production use):
+   ```bash
+   dotnet user-secrets set "OpenAI:ApiKey" "your-openai-api-key-here"
    ```
 
-2. Customize search parameters in `appsettings.json`:
-   ```json
-   {
-     "HyDE": {
-       "HydeWeight": 0.7,
-       "TraditionalWeight": 0.3,
-       "MaxResults": 10,
-       "SimilarityThreshold": 0.1
-     }
-   }
-   ```
+### Development Configuration
 
-### Running the Application
+The application automatically detects the environment and configures services accordingly:
 
-```bash
-dotnet run
+- **🧪 Development Mode** (no OpenAI API key): Uses mock services with deterministic responses
+- **🚀 Production Mode** (with OpenAI API key): Uses real OpenAI API services
+
+Configure search parameters in `appsettings.json`:
+```json
+{
+  "HyDE": {
+    "HydeWeight": 0.7,
+    "TraditionalWeight": 0.3,
+    "MaxResults": 10,
+    "SimilarityThreshold": 0.1
+  }
+}
 ```
 
+## API Endpoints
+
+The HyDE Search API provides the following RESTful endpoints:
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | API information and available endpoints |
+| `GET` | `/api/health` | Health check with service status |
+| `GET` | `/api/documents` | Get count of indexed documents |
+| `POST` | `/api/documents` | Index new documents with auto-embedding |
+| `POST` | `/api/search` | Perform HyDE search with detailed results |
+| `GET` | `/api/search/quick?q={query}` | Quick search with query parameter |
+
+### Example API Usage
+
+**Index Documents:**
 ```bash
-dotnet run --mock
+curl -X POST "http://localhost:5000/api/documents" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "id": "doc1",
+      "title": "Machine Learning Basics",
+      "content": "Machine learning is a subset of artificial intelligence..."
+    }
+  ]'
+```
+
+**Search Documents:**
+```bash
+curl -X POST "http://localhost:5000/api/search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is machine learning?",
+    "maxResults": 5
+  }'
+```
+
+**Quick Search:**
+```bash
+curl "http://localhost:5000/api/search/quick?q=machine%20learning&limit=5"
 ```
 
 ## Project Structure
