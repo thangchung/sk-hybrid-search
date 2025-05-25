@@ -76,3 +76,22 @@ public class OpenAiHypotheticalDocumentGenerator : IHypotheticalDocumentGenerato
         public string Content { get; set; } = string.Empty;
     }
 }
+
+/// <summary>
+/// Mock hypothetical document generator for testing without OpenAI API
+/// </summary>
+public class MockHypotheticalDocumentGenerator : IHypotheticalDocumentGenerator
+{
+    public Task<string> GenerateHypotheticalDocumentAsync(string query, CancellationToken cancellationToken = default)
+    {
+        // Generate a simple hypothetical document based on the query
+        // This is a basic mock - in real scenarios, you'd want more sophisticated logic
+        var hypotheticalDocument = $"This document discusses {query.ToLowerInvariant()}. " +
+                                   $"It covers the main concepts related to {query.ToLowerInvariant()} " +
+                                   $"and provides detailed information about how {query.ToLowerInvariant()} " +
+                                   $"works in practice. The document explains the principles behind " +
+                                   $"{query.ToLowerInvariant()} and its applications in modern technology.";
+        
+        return Task.FromResult(hypotheticalDocument);
+    }
+}

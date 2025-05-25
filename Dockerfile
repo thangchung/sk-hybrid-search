@@ -1,8 +1,8 @@
-# Test Dockerfile for HyDE Search application
+# HyDE Search Web API Dockerfile
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
-EXPOSE 5000
-EXPOSE 5001
+EXPOSE 8080
+EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src

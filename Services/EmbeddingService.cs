@@ -70,3 +70,47 @@ public class OpenAiEmbeddingService : IEmbeddingService
         public float[] Embedding { get; set; } = [];
     }
 }
+
+/// <summary>
+/// Mock embedding service for testing without OpenAI API
+/// </summary>
+public class MockEmbeddingService : IEmbeddingService
+{
+    private const int EmbeddingDimensions = 1536; // Same as OpenAI text-embedding-3-small
+
+    public Task<float[]> GetEmbeddingAsync(string text, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(GenerateMockEmbedding(text));
+    }
+
+    public Task<float[][]> GetEmbeddingsAsync(IEnumerable<string> texts, CancellationToken cancellationToken = default)
+    {
+        var embeddings = texts.Select(GenerateMockEmbedding).ToArray();
+        return Task.FromResult(embeddings);
+    }
+
+    private static float[] GenerateMockEmbedding(string text)
+    {
+        // Generate a deterministic "embedding" based on text content
+        // This won't be as good as real embeddings but allows testing
+        var random = new Random(text.GetHashCode());
+        var embedding = new float[EmbeddingDimensions];
+        
+        for (int i = 0; i < EmbeddingDimensions; i++)
+        {
+            embedding[i] = (float)(random.NextDouble() - 0.5) * 2.0f; // Range [-1, 1]
+        }
+        
+        // Normalize the vector
+        var magnitude = Math.Sqrt(embedding.Select(x => x * x).Sum());
+        if (magnitude > 0)
+        {
+            for (int i = 0; i < EmbeddingDimensions; i++)
+            {
+                embedding[i] /= (float)magnitude;
+            }
+        }
+        
+        return embedding;
+    }
+}
