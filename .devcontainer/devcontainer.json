@@ -1,0 +1,81 @@
+{
+  "name": "HyDE Search .NET 9 with Docker",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0-bookworm",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true,
+      "azureDnsAutoDetection": true,
+      "installDockerBuildx": true,
+      "installDockerComposeSwitch": true,
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "installOhMyZshConfig": true,
+      "upgradePackages": true
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+        "dotnet.inlayHints.enableInlayHintsForParameters": true,
+        "dotnet.inlayHints.enableInlayHintsForLiteralParameters": true,
+        "dotnet.inlayHints.enableInlayHintsForIndexerParameters": true,
+        "dotnet.inlayHints.enableInlayHintsForObjectCreationParameters": true,
+        "dotnet.inlayHints.enableInlayHintsForOtherParameters": true,
+        "dotnet.inlayHints.suppressInlayHintsForParametersThatDifferOnlyBySuffix": true,
+        "dotnet.inlayHints.suppressInlayHintsForParametersThatMatchMethodIntent": true,
+        "dotnet.inlayHints.suppressInlayHintsForParametersThatMatchArgumentName": true,
+        "omnisharp.enableEditorConfigSupport": true,
+        "omnisharp.enableRoslynAnalyzers": true,
+        "docker.dockerPath": "docker",
+        "docker.machineNaming": "default"
+      },
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.powershell",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ]
+    }
+  },
+
+  "forwardPorts": [5000, 5001, 8080, 8081],
+
+  "postCreateCommand": "dotnet restore && dotnet build",
+
+  "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+
+  "remoteUser": "vscode",
+
+  "containerEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1",
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "DOCKER_BUILDKIT": "1"
+  },
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/${localWorkspaceFolderBasename},type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "mounts": [
+    "source=hydesearch-nuget,target=/home/vscode/.nuget,type=volume",
+    "source=hydesearch-vscode-extensions,target=/home/vscode/.vscode-server/extensions,type=volume",
+    "source=hydesearch-docker,target=/var/lib/docker,type=volume"
+  ],
+
+  "privileged": true
+}
