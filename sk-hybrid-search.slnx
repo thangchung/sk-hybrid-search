@@ -1,7 +1,7 @@
 
 <Solution>
   <Project Path="AppHost/AppHost.csproj" />
-  <Project Path="HydeSearch/HydeSearch.csproj" />
+  <Project Path="HybridSearch/HybridSearch.csproj" />
   <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
   <Properties>
     <Property Name="Configuration|Platform" Value="Debug|Any CPU" />

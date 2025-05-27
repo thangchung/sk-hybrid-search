@@ -93,12 +93,7 @@ public enum ScoreNormalizationStrategy
 /// </summary>
 public class ElasticSearchConfiguration
 {
-    public string ConnectionString { get; set; } = "http://localhost:9200";
     public string IndexName { get; set; } = "hyde-search";
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public bool EnableSSL { get; set; } = false;
-    public bool VerifySSL { get; set; } = true;
 }
 
 /// <summary>

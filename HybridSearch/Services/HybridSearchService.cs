@@ -1,6 +1,5 @@
 using HydeSearch.Configuration;
 using HydeSearch.Models;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace HydeSearch.Services;

@@ -1,6 +1,3 @@
-using HydeSearch.Configuration;
-using Microsoft.Extensions.Options;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Embeddings;
 
 namespace HydeSearch.Services;

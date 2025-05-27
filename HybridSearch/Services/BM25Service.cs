@@ -1,5 +1,4 @@
 using HydeSearch.Models;
-using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
 namespace HydeSearch.Services;

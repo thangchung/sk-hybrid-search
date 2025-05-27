@@ -60,20 +60,6 @@ public class ElasticSearchBM25Service : IBM25Service
 				SearchableText = $"{doc.Title} {doc.Content}".Trim()
 			}).ToList();
 
-			// Bulk index documents
-			//var bulkResponse = await _client.BulkAsync(b => b
-			//    .Index(_indexName)
-			//    .IndexMany(elasticDocs, (bd, doc) => bd
-			//        .Id(doc.Id)
-			//        .Document(doc)),
-			//    cancellationToken);
-
-			//if (!bulkResponse.IsValid)
-			//{
-			//    _logger.LogError("Failed to index documents: {Error}", bulkResponse.DebugInformation);
-			//    throw new InvalidOperationException($"Failed to index documents: {bulkResponse.DebugInformation}");
-			//}
-
 			var bulkResponse = await _client.BulkAsync(b =>
 			{
 				foreach (var doc in documents)
