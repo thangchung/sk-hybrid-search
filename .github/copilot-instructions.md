@@ -11,6 +11,7 @@ This is a C#/.NET 9 project implementing HyDE (Hypothetical Document Embeddings)
 * Never change global.json unless explicitly asked to.
 * Never change package.json or package-lock.json files unless explicitly asked to.
 * Use C# primary constructor syntax for record and class types.
+* Place all markdown files (guidances, implementing summaries, etc.) in the `docs` folder.
 
 ## Architecture Guidelines
 

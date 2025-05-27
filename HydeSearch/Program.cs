@@ -6,6 +6,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
+using ElasticClient = Nest.ElasticClient;
+using IElasticClient = Nest.IElasticClient;
+using ConnectionSettings = Nest.ConnectionSettings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,13 +30,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure AI, HyDE Search, and Hybrid Search settings
+// Configure AI, HyDE Search, Hybrid Search, and BM25 settings
 builder.Services.Configure<AiConfiguration>(
     builder.Configuration.GetSection("AI"));
 builder.Services.Configure<HydeConfiguration>(
     builder.Configuration.GetSection("HyDE"));
 builder.Services.Configure<HybridSearchConfiguration>(
     builder.Configuration.GetSection("HybridSearch"));
+builder.Services.Configure<BM25Configuration>(
+    builder.Configuration.GetSection("BM25"));
 
 // Get AI configuration
 var aiConfig = builder.Configuration.GetSection("AI").Get<AiConfiguration>() ?? new AiConfiguration();
@@ -106,7 +111,40 @@ builder.Services.AddSingleton<IVectorSimilarityService, VectorSimilarityService>
 builder.Services.AddTransient<IHydeSearchService, HydeSearchService>();
 
 // Register BM25 and Hybrid Search services
-builder.Services.AddSingleton<IBM25Service, BM25Service>();
+var bm25Config = builder.Configuration.GetSection("BM25").Get<BM25Configuration>() ?? new BM25Configuration();
+
+if (bm25Config.Provider.Equals("ElasticSearch", StringComparison.OrdinalIgnoreCase))
+{
+    // Register ElasticSearch client
+    builder.Services.AddSingleton<IElasticClient>(provider =>
+    {
+        var config = bm25Config.ElasticSearch;
+        var connectionSettings = new ConnectionSettings(new Uri(builder.Configuration.GetConnectionString("elasticsearch")))
+            .DefaultIndex(config.IndexName.ToLowerInvariant())
+            .EnableDebugMode()
+            .PrettyJson();
+
+        //if (!string.IsNullOrWhiteSpace(config.Username) && !string.IsNullOrWhiteSpace(config.Password))
+        //{
+        //    connectionSettings = connectionSettings.BasicAuthentication(config.Username, config.Password);
+        //}
+
+        //if (!config.VerifySSL)
+        //{
+        //    connectionSettings = connectionSettings.ServerCertificateValidationCallback((o, certificate, chain, errors) => true);
+        //}
+
+        return new ElasticClient(connectionSettings);
+    });
+
+    builder.Services.AddSingleton<IBM25Service, ElasticSearchBM25Service>();
+}
+else
+{
+    // Default to in-memory BM25 service
+    builder.Services.AddSingleton<IBM25Service, BM25Service>();
+}
+
 builder.Services.AddTransient<IHybridSearchService, HybridSearchService>();
 
 // Add CORS for development

@@ -87,3 +87,25 @@ public enum ScoreNormalizationStrategy
     /// <summary>No normalization, use raw scores</summary>
     None
 }
+
+/// <summary>
+/// Configuration for ElasticSearch integration
+/// </summary>
+public class ElasticSearchConfiguration
+{
+    public string ConnectionString { get; set; } = "http://localhost:9200";
+    public string IndexName { get; set; } = "hyde-search";
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public bool EnableSSL { get; set; } = false;
+    public bool VerifySSL { get; set; } = true;
+}
+
+/// <summary>
+/// Configuration for BM25 search provider selection
+/// </summary>
+public class BM25Configuration
+{
+    public string Provider { get; set; } = "InMemory"; // InMemory or ElasticSearch
+    public ElasticSearchConfiguration ElasticSearch { get; set; } = new();
+}
