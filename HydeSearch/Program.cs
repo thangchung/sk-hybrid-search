@@ -2,6 +2,7 @@
 using HydeSearch.Configuration;
 using HydeSearch.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
@@ -26,11 +27,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure AI and HyDE Search settings
+// Configure AI, HyDE Search, and Hybrid Search settings
 builder.Services.Configure<AiConfiguration>(
     builder.Configuration.GetSection("AI"));
 builder.Services.Configure<HydeConfiguration>(
     builder.Configuration.GetSection("HyDE"));
+builder.Services.Configure<HybridSearchConfiguration>(
+    builder.Configuration.GetSection("HybridSearch"));
 
 // Get AI configuration
 var aiConfig = builder.Configuration.GetSection("AI").Get<AiConfiguration>() ?? new AiConfiguration();
@@ -102,6 +105,10 @@ builder.Services.AddSingleton<IDocumentStore, InMemoryDocumentStore>();
 builder.Services.AddSingleton<IVectorSimilarityService, VectorSimilarityService>();
 builder.Services.AddTransient<IHydeSearchService, HydeSearchService>();
 
+// Register BM25 and Hybrid Search services
+builder.Services.AddSingleton<IBM25Service, BM25Service>();
+builder.Services.AddTransient<IHybridSearchService, HybridSearchService>();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {
@@ -131,14 +138,20 @@ app.UseHttpsRedirection();
 
 // Minimal API endpoints
 app.MapGet("/", () => new { 
-    message = "🚀 HyDE Search Web API", 
+    message = "🚀 Hybrid Search API (BM25 + HyDE)", 
     version = "1.0.0",
+    searchTypes = new[] {
+        "Hybrid Search: BM25 + HyDE semantic search",
+        "HyDE Search: Pure semantic search",
+        "BM25 Search: Keyword-based search"
+    },
     endpoints = new[] {
         "GET /api/health - Health check",
         "GET /api/documents - Get all documents",
         "POST /api/documents - Add documents",
-        "POST /api/search - Search documents using HyDE",
-        "GET /api/search/quick?q={query} - Quick search"
+        "POST /api/search/hybrid - Hybrid search (BM25 + HyDE)",
+        "POST /api/search - HyDE semantic search only",
+        "GET /api/search/quick?q={query} - Quick hybrid search"
     }
 })
 .WithName("GetRoot")
@@ -147,16 +160,16 @@ app.MapGet("/", () => new {
 app.MapGet("/api/health", () => new { 
     status = "healthy", 
     timestamp = DateTime.UtcNow,
-    service = "HyDE Search API"
+    service = "Hybrid Search API (BM25 + HyDE)"
 })
 .WithName("GetHealth")
 .WithOpenApi();
 
-app.MapGet("/api/documents", async (IHydeSearchService hydeSearch) =>
+app.MapGet("/api/documents", async (IHybridSearchService hybridSearch) =>
 {
     try
     {
-        var count = await hydeSearch.GetIndexedDocumentCountAsync();
+        var count = await hybridSearch.GetIndexedDocumentCountAsync();
         return Results.Ok(new { documentCount = count, message = $"Total indexed documents: {count}" });
     }
     catch (Exception ex)
@@ -169,7 +182,7 @@ app.MapGet("/api/documents", async (IHydeSearchService hydeSearch) =>
 
 app.MapPost("/api/documents", async (
     [FromBody] Document[] documents, 
-    IHydeSearchService hydeSearch,
+    IHybridSearchService hybridSearch,
     ILogger<Program> logger) =>
 {
     try
@@ -179,13 +192,13 @@ app.MapPost("/api/documents", async (
             return Results.BadRequest("No documents provided");
         }
 
-        await hydeSearch.IndexDocumentsAsync(documents);
-        var count = await hydeSearch.GetIndexedDocumentCountAsync();
+        await hybridSearch.IndexDocumentsAsync(documents);
+        var count = await hybridSearch.GetIndexedDocumentCountAsync();
         
-        logger.LogInformation("✅ Successfully indexed {DocumentCount} documents", documents.Length);
+        logger.LogInformation("✅ Successfully indexed {DocumentCount} documents for hybrid search", documents.Length);
         
         return Results.Ok(new { 
-            message = $"Successfully indexed {documents.Length} documents",
+            message = $"Successfully indexed {documents.Length} documents for hybrid search (BM25 + HyDE)",
             totalDocuments = count
         });
     }
@@ -196,6 +209,60 @@ app.MapPost("/api/documents", async (
     }
 })
 .WithName("PostDocuments")
+.WithOpenApi();
+
+app.MapPost("/api/search/hybrid", async (
+    [FromBody] HybridSearchRequest request,
+    IHybridSearchService hybridSearch,
+    IOptions<HybridSearchConfiguration> config,
+    ILogger<Program> logger) =>
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(request.Query))
+        {
+            return Results.BadRequest("Query cannot be empty");
+        }
+
+        logger.LogInformation("🔍 Hybrid search for: '{Query}'", request.Query);
+        
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var results = await hybridSearch.SearchAsync(request.Query);
+        stopwatch.Stop();
+        
+        var resultList = results.Take(request.MaxResults ?? 10).ToList();
+        
+        // Count results by type for metrics
+        var bm25Count = resultList.Count(r => r.BM25Score.HasValue);
+        var hydeCount = resultList.Count(r => r.HydeScore.HasValue);
+        
+        var response = new HybridSearchResponse(
+            request.Query,
+            resultList,
+            resultList.Count,
+            stopwatch.ElapsedMilliseconds,
+            new SearchMetrics(
+                config.Value.EnableBM25,
+                config.Value.EnableHyDE,
+                bm25Count,
+                hydeCount,
+                config.Value.BM25Weight,
+                config.Value.HydeWeight
+            )
+        );
+
+        logger.LogInformation("📋 Hybrid search found {ResultCount} results for query: '{Query}' in {ElapsedMs}ms", 
+            resultList.Count, request.Query, stopwatch.ElapsedMilliseconds);
+
+        return Results.Ok(response);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "❌ Error in hybrid search for query: '{Query}'", request.Query);
+        return Results.Problem($"Error processing hybrid search request: {ex.Message}");
+    }
+})
+.WithName("PostHybridSearch")
 .WithOpenApi();
 
 app.MapPost("/api/search", async (
@@ -240,7 +307,8 @@ app.MapPost("/api/search", async (
 app.MapGet("/api/search/quick", async (
     [FromQuery] string q,
     [FromQuery] int? limit,
-    IHydeSearchService hydeSearch,
+    IHybridSearchService hybridSearch,
+    IOptions<HybridSearchConfiguration> config,
     ILogger<Program> logger) =>
 {
     try
@@ -253,25 +321,39 @@ app.MapGet("/api/search/quick", async (
         var searchLimit = limit ?? 5;
         if (searchLimit <= 0) searchLimit = 5;
 
-        logger.LogInformation("⚡ Quick search for: '{Query}'", q);
+        logger.LogInformation("⚡ Quick hybrid search for: '{Query}'", q);
         
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var results = await hydeSearch.SearchAsync(q);
+        var results = await hybridSearch.SearchAsync(q);
         stopwatch.Stop();
         
-        var resultList = results.Take(searchLimit).ToList();var response = new SearchResponse(
+        var resultList = results.Take(searchLimit).ToList();
+        
+        // Count results by type for metrics
+        var bm25Count = resultList.Count(r => r.BM25Score.HasValue);
+        var hydeCount = resultList.Count(r => r.HydeScore.HasValue);
+        
+        var response = new HybridSearchResponse(
             q,
             resultList,
             resultList.Count,
-            stopwatch.ElapsedMilliseconds
+            stopwatch.ElapsedMilliseconds,
+            new SearchMetrics(
+                config.Value.EnableBM25,
+                config.Value.EnableHyDE,
+                bm25Count,
+                hydeCount,
+                config.Value.BM25Weight,
+                config.Value.HydeWeight
+            )
         );
 
         return Results.Ok(response);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "❌ Error in quick search for query: '{Query}'", q);
-        return Results.Problem($"Error processing quick search request: {ex.Message}");
+        logger.LogError(ex, "❌ Error in quick hybrid search for query: '{Query}'", q);
+        return Results.Problem($"Error processing quick hybrid search request: {ex.Message}");
     }
 })
 .WithName("GetQuickSearch")
@@ -286,11 +368,11 @@ static async Task InitializeSampleData(IServiceProvider services)
 {
     using var scope = services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var hydeSearch = scope.ServiceProvider.GetRequiredService<IHydeSearchService>();
+    var hybridSearch = scope.ServiceProvider.GetRequiredService<IHybridSearchService>();
 
     try
     {
-        logger.LogInformation("🚀 Initializing HyDE Search Web API");
+        logger.LogInformation("🚀 Initializing Hybrid Search API (BM25 + HyDE)");
 
         // Check if OpenAI API key is configured
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
@@ -298,10 +380,11 @@ static async Task InitializeSampleData(IServiceProvider services)
         
         if (string.IsNullOrEmpty(openAiApiKey))
         {
-            logger.LogWarning("⚠️  OpenAI API key not configured. API will return mock responses.");
+            logger.LogWarning("⚠️  OpenAI API key not configured. API will return mock responses for HyDE search.");
             logger.LogInformation("To configure OpenAI API key:");
             logger.LogInformation("  1. dotnet user-secrets set \"OpenAI:ApiKey\" \"your-api-key-here\"");
             logger.LogInformation("  2. Or set environment variable: OpenAI__ApiKey=your-api-key-here");
+            logger.LogInformation("📝 BM25 keyword search will work without API keys");
         }
 
         // Add sample documents
@@ -337,16 +420,18 @@ static async Task InitializeSampleData(IServiceProvider services)
                 Title = "Reinforcement Learning Concepts",
                 Content = "Reinforcement learning is a type of machine learning where an agent learns to make decisions by taking actions in an environment to maximize cumulative reward. It's used in robotics, game playing, and autonomous systems."
             }
-        };        await hydeSearch.IndexDocumentsAsync(documents);
-        var count = await hydeSearch.GetIndexedDocumentCountAsync();
-        logger.LogInformation("✅ Successfully indexed {DocumentCount} sample documents", count);
-        logger.LogInformation("🌐 HyDE Search Web API is ready!");
+        };
+        
+        await hybridSearch.IndexDocumentsAsync(documents);
+        var count = await hybridSearch.GetIndexedDocumentCountAsync();
+        logger.LogInformation("✅ Successfully indexed {DocumentCount} sample documents for hybrid search", count);
+        logger.LogInformation("🌐 Hybrid Search API is ready! (BM25 + HyDE)");
         logger.LogInformation("📖 Visit /swagger for API documentation");
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "❌ Error initializing sample data");
-        logger.LogWarning("⚠️  API will work with manually added documents or mock responses");
+        logger.LogWarning("⚠️  API will work with manually added documents");
     }
 }
 

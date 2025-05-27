@@ -1,15 +1,18 @@
-# HyDE Search - Hypothetical Document Embeddings
+# Hybrid Search - BM25 + HyDE Implementation
 
-A modern C#/.NET 9 **Web API** implementation of HyDE (Hypothetical Document Embeddings) search, which enhances traditional semantic search by generating hypothetical documents that would answer queries and using them to improve search relevance.
+A modern C#/.NET 9 **Web API** implementation that combines **BM25 keyword search** with **HyDE (Hypothetical Document Embeddings)** semantic search, providing the best of both traditional and modern search techniques.
 
 ## Features
 
+- **🔍 Hybrid Search**: Combines BM25 keyword matching with HyDE semantic similarity
+- **📊 BM25 Implementation**: Full-featured TF-IDF based keyword search with configurable parameters
+- **🤖 HyDE Algorithm**: Semantic search using hypothetical document generation and embeddings
 - **🌐 RESTful Web API**: ASP.NET Core minimal APIs with OpenAPI/Swagger documentation
-- **🔍 HyDE Algorithm Implementation**: Combines traditional query-document similarity with hypothetical document generation
 - **⚡ High-Performance Vector Operations**: Uses `System.Numerics.Tensors` for efficient similarity calculations
 - **🤖 OpenAI Integration**: Leverages OpenAI's embedding and completion APIs with fallback to mock services
+- **⚙️ Configurable Weights**: Adjustable BM25/HyDE score combination and normalization strategies
+- **📈 Score Normalization**: Multiple normalization strategies (MinMax, ZScore, None)
 - **🏗️ Modern C# Architecture**: Built with dependency injection, async/await, and nullable reference types
-- **⚙️ Configurable Search Parameters**: Customizable weights and thresholds
 - **📝 Comprehensive Logging**: Structured logging with Microsoft.Extensions.Logging
 - **🚀 .NET Aspire Ready**: Configured for cloud-native deployment and orchestration
 - **🧪 Mock Services**: Built-in mock services for development and testing without OpenAI API
@@ -20,13 +23,28 @@ A modern C#/.NET 9 **Web API** implementation of HyDE (Hypothetical Document Emb
 - **[Workflow Documentation](docs/HyDE-Search-Workflow.md)** - Detailed workflow diagrams and process flow
 - **[API Reference](#api-endpoints)** - RESTful endpoint documentation
 
-## How HyDE Works
+## How Hybrid Search Works
 
+The hybrid approach combines two complementary search strategies:
+
+### BM25 Keyword Search
+1. **Text Preprocessing**: Tokenization, lowercasing, and stop word removal
+2. **Term Frequency (TF)**: Calculate how often terms appear in documents
+3. **Inverse Document Frequency (IDF)**: Measure term importance across the corpus
+4. **BM25 Scoring**: Apply BM25 formula with configurable k1 and b parameters
+
+### HyDE Semantic Search
 1. **Traditional Embedding**: Generate an embedding for the original query
 2. **Hypothetical Document Generation**: Use an LLM to create a hypothetical document that would answer the query
 3. **Hypothetical Embedding**: Generate an embedding for the hypothetical document
 4. **Dual Similarity Calculation**: Calculate both query-to-document and hypothetical-to-document similarities
 5. **Weighted Combination**: Combine similarities using configurable weights for final ranking
+
+### Hybrid Combination
+1. **Independent Scoring**: Both BM25 and HyDE score all documents independently
+2. **Score Normalization**: Apply normalization strategy (MinMax, ZScore, or None)
+3. **Weighted Fusion**: Combine normalized scores using configurable weights (default: BM25=0.3, HyDE=0.7)
+4. **Final Ranking**: Sort by combined scores for optimal relevance
 
 ## Getting Started
 
@@ -58,8 +76,7 @@ A modern C#/.NET 9 **Web API** implementation of HyDE (Hypothetical Document Emb
 2. **Run with mock services** (no OpenAI API key required):
    ```bash
    dotnet run
-   ```
-   The API will automatically use mock services and start on `http://localhost:5000`
+   ```   The API will automatically use mock services and start on `http://localhost:5000`
 
 3. **Access the API**:
    - **Swagger UI**: http://localhost:5000/swagger
@@ -75,12 +92,23 @@ A modern C#/.NET 9 **Web API** implementation of HyDE (Hypothetical Document Emb
 
 The application automatically detects the environment and configures services accordingly:
 
-- **🧪 Development Mode** (no OpenAI API key): Uses mock services with deterministic responses
-- **🚀 Production Mode** (with OpenAI API key): Uses real OpenAI API services
+- **🧪 Development Mode** (no OpenAI API key): Uses mock services with deterministic responses for HyDE, BM25 works independently
+- **🚀 Production Mode** (with OpenAI API key): Uses real OpenAI API services for HyDE component
 
 Configure search parameters in `appsettings.json`:
 ```json
 {
+  "HybridSearch": {
+    "BM25Weight": 0.3,
+    "HydeWeight": 0.7,
+    "NormalizationStrategy": "MinMax",
+    "EnableBM25": true,
+    "EnableHyDE": true
+  },
+  "BM25": {
+    "K1": 1.2,
+    "B": 0.75
+  },
   "HyDE": {
     "HydeWeight": 0.7,
     "TraditionalWeight": 0.3,
@@ -92,7 +120,7 @@ Configure search parameters in `appsettings.json`:
 
 ## API Endpoints
 
-The HyDE Search API provides the following RESTful endpoints:
+The Hybrid Search API provides the following RESTful endpoints:
 
 ### Core Endpoints
 
@@ -100,12 +128,56 @@ The HyDE Search API provides the following RESTful endpoints:
 |--------|----------|-------------|
 | `GET` | `/` | API information and available endpoints |
 | `GET` | `/api/health` | Health check with service status |
+| `POST` | `/api/search/hybrid` | **Primary hybrid search** (BM25 + HyDE) |
+| `GET` | `/api/search/quick` | Quick hybrid search with query parameter |
+### Legacy HyDE Endpoints (Still Supported)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | `GET` | `/api/documents` | Get count of indexed documents |
 | `POST` | `/api/documents` | Index new documents with auto-embedding |
-| `POST` | `/api/search` | Perform HyDE search with detailed results |
-| `GET` | `/api/search/quick?q={query}` | Quick search with query parameter |
+| `POST` | `/api/search` | Perform HyDE-only search |
+| `GET` | `/api/search/quick?q={query}` | Quick HyDE-only search |
 
 ### Example API Usage
+
+**Hybrid Search (Recommended):**
+```bash
+curl -X POST "http://localhost:5000/api/search/hybrid" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "machine learning algorithms",
+    "limit": 5,
+    "includeScores": true
+  }'
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "document": {
+        "id": "doc1",
+        "title": "Machine Learning Basics",
+        "content": "Machine learning algorithms..."
+      },
+      "combinedScore": 0.8542,
+      "bm25Score": 0.7234,
+      "hydeScore": 0.9123,
+      "normalizedBM25Score": 0.8100,
+      "normalizedHydeScore": 0.8734
+    }
+  ],
+  "searchMetrics": {
+    "bm25Weight": 0.3,
+    "hydeWeight": 0.7,
+    "normalizationStrategy": "MinMax",
+    "totalDocuments": 5,
+    "searchDurationMs": 245
+  }
+}
+```
 
 **Index Documents:**
 ```bash

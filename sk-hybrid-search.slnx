@@ -1,5 +1,13 @@
+
 <Solution>
-  <Project Path="AppHost/AppHost.csproj" Id="ab7a2976-8921-454d-924f-1b5794d9ee29" />
+  <Project Path="AppHost/AppHost.csproj" />
   <Project Path="HydeSearch/HydeSearch.csproj" />
-  <Project Path="ServiceDefaults/ServiceDefaults.csproj" Id="81773df0-7323-4044-8c92-b9f8ff3e8556" />
+  <Project Path="ServiceDefaults/ServiceDefaults.csproj" />
+  <Properties>
+    <Property Name="Configuration|Platform" Value="Debug|Any CPU" />
+  </Properties>
+  <ItemDefinitionGroup>
+    <SolutionConfiguration Include="Debug|Any CPU" />
+    <SolutionConfiguration Include="Release|Any CPU" />
+  </ItemDefinitionGroup>
 </Solution>
