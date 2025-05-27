@@ -10,6 +10,7 @@ This is a C#/.NET 9 project implementing HyDE (Hypothetical Document Embeddings)
 * Always use the latest version C#, currently C# 13 features.
 * Never change global.json unless explicitly asked to.
 * Never change package.json or package-lock.json files unless explicitly asked to.
+* Use C# primary constructor syntax for record and class types.
 
 ## Architecture Guidelines
 
@@ -54,6 +55,7 @@ The HyDE search combines traditional query-document similarity with hypothetical
 * Use pattern matching and switch expressions wherever possible.
 * Use `nameof` instead of string literals when referring to member names.
 * Ensure that XML doc comments are created for any public APIs. When applicable, include `<example>` and `<code>` documentation in the comments.
+* Check and remove unused usings in files.
 
 ### Nullable Reference Types
 

@@ -1,6 +1,7 @@
-using System.Text.Json;
 using HydeSearch.Configuration;
 using Microsoft.Extensions.Options;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Embeddings;
 
 namespace HydeSearch.Services;
 
@@ -14,65 +15,33 @@ public interface IEmbeddingService
 }
 
 /// <summary>
-/// OpenAI-based embedding service implementation
+/// Semantic Kernel-based embedding service implementation
 /// </summary>
-public class OpenAiEmbeddingService : IEmbeddingService
+public class SemanticKernelEmbeddingService : IEmbeddingService
 {
-    private readonly HttpClient _httpClient;
-    private readonly OpenAiConfiguration _config;
+    private readonly ITextEmbeddingGenerationService _embeddingService;
 
-    public OpenAiEmbeddingService(HttpClient httpClient, IOptions<OpenAiConfiguration> config)
+    public SemanticKernelEmbeddingService(ITextEmbeddingGenerationService embeddingService)
     {
-        _httpClient = httpClient;
-        _config = config.Value;
-        
-        _httpClient.DefaultRequestHeaders.Authorization = 
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _config.ApiKey);
+        _embeddingService = embeddingService;
     }
 
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken cancellationToken = default)
     {
-        var embeddings = await GetEmbeddingsAsync([text], cancellationToken);
-        return embeddings[0];
+        var embedding = await _embeddingService.GenerateEmbeddingAsync(text, cancellationToken: cancellationToken);
+        return embedding.ToArray();
     }
 
     public async Task<float[][]> GetEmbeddingsAsync(IEnumerable<string> texts, CancellationToken cancellationToken = default)
     {
-        var requestData = new
-        {
-            model = _config.EmbeddingModel,
-            input = texts.ToArray()
-        };
-
-        var json = JsonSerializer.Serialize(requestData);
-        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-        var response = await _httpClient.PostAsync($"{_config.BaseUrl}/embeddings", content, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        var embeddingResponse = JsonSerializer.Deserialize<EmbeddingResponse>(responseJson)!;
-
-        return embeddingResponse.Data
-            .OrderBy(d => d.Index)
-            .Select(d => d.Embedding)
-            .ToArray();
-    }
-
-    private class EmbeddingResponse
-    {
-        public EmbeddingData[] Data { get; set; } = [];
-    }
-
-    private class EmbeddingData
-    {
-        public int Index { get; set; }
-        public float[] Embedding { get; set; } = [];
+        var textList = texts.ToList();
+        var embeddings = await _embeddingService.GenerateEmbeddingsAsync(textList, cancellationToken: cancellationToken);
+        return embeddings.Select(e => e.ToArray()).ToArray();
     }
 }
 
 /// <summary>
-/// Mock embedding service for testing without OpenAI API
+/// Mock embedding service for testing without AI providers
 /// </summary>
 public class MockEmbeddingService : IEmbeddingService
 {
