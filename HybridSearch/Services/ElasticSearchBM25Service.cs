@@ -78,6 +78,8 @@ public class ElasticSearchBM25Service : IBM25Service
 				throw new InvalidOperationException($"Failed to index documents: {bulkResponse.DebugInformation}");
 			}
 
+			// throw new Exception("Intention throws this exception");
+
 			// Refresh index to make documents searchable immediately
 			await _client.Indices.RefreshAsync(_indexName, ct: cancellationToken);
 

@@ -73,6 +73,12 @@ public class HybridSearchConfiguration
     
     /// <summary>Normalization strategy for combining scores</summary>
     public ScoreNormalizationStrategy NormalizationStrategy { get; set; } = ScoreNormalizationStrategy.MinMax;
+    
+    /// <summary>Reranking strategy for combining search results</summary>
+    public RerankingStrategy RerankingStrategy { get; set; } = RerankingStrategy.WeightedSum;
+    
+    /// <summary>RRF parameter k (default: 60, typical range: 10-100)</summary>
+    public float RrfK { get; set; } = 60.0f;
 }
 
 /// <summary>
@@ -86,6 +92,23 @@ public enum ScoreNormalizationStrategy
     ZScore,
     /// <summary>No normalization, use raw scores</summary>
     None
+}
+
+/// <summary>
+/// Strategies for combining and reranking search results
+/// </summary>
+public enum RerankingStrategy
+{
+    /// <summary>Simple weighted combination of normalized scores</summary>
+    WeightedSum,
+    /// <summary>Reciprocal Rank Fusion (RRF)</summary>
+    ReciprocalRankFusion,
+    /// <summary>Combinator Sum (CombSum)</summary>
+    CombSum,
+    /// <summary>Combinator Max (CombMax)</summary>
+    CombMax,
+    /// <summary>Borda Count voting method</summary>
+    BordaCount
 }
 
 /// <summary>
