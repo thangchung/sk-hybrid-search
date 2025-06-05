@@ -48,6 +48,7 @@ var defaultProvider = aiConfig.DefaultProvider;
 
 // Check available providers
 var hasOpenAiKey = !string.IsNullOrWhiteSpace(aiConfig.OpenAI.ApiKey);
+var hasAzureOpenAiKey = !string.IsNullOrWhiteSpace(aiConfig.AzureOpenAI.ApiKey) && !string.IsNullOrWhiteSpace(aiConfig.AzureOpenAI.Endpoint);
 var hasOllamaConfig = !string.IsNullOrWhiteSpace(aiConfig.Ollama.BaseUrl);
 
 if (hasOpenAiKey && defaultProvider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
@@ -62,6 +63,32 @@ if (hasOpenAiKey && defaultProvider.Equals("OpenAI", StringComparison.OrdinalIgn
 		kernelBuilder.AddOpenAITextEmbeddingGeneration(
 			aiConfig.OpenAI.EmbeddingModel,
 			aiConfig.OpenAI.ApiKey);
+		return kernelBuilder.Build();
+	});
+
+	// Register Semantic Kernel services for dependency injection
+	builder.Services.AddTransient<IChatCompletionService>(provider =>
+		provider.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
+	builder.Services.AddTransient<ITextEmbeddingGenerationService>(provider =>
+		provider.GetRequiredService<Kernel>().GetRequiredService<ITextEmbeddingGenerationService>());
+	// Register HyDE services
+	builder.Services.AddTransient<IEmbeddingService, SemanticKernelEmbeddingService>();
+	builder.Services.AddTransient<IHypotheticalDocumentGenerator, SemanticKernelHypotheticalDocumentGenerator>();
+}
+else if (hasAzureOpenAiKey && defaultProvider.Equals("AzureOpenAI", StringComparison.OrdinalIgnoreCase))
+{
+	// Register Semantic Kernel with Azure OpenAI services
+	builder.Services.AddTransient<Kernel>(provider =>
+	{
+		var kernelBuilder = Kernel.CreateBuilder();
+		kernelBuilder.AddAzureOpenAIChatCompletion(
+			aiConfig.AzureOpenAI.CompletionDeploymentName,
+			aiConfig.AzureOpenAI.Endpoint,
+			aiConfig.AzureOpenAI.ApiKey);
+		kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
+			aiConfig.AzureOpenAI.EmbeddingDeploymentName,
+			aiConfig.AzureOpenAI.Endpoint,
+			aiConfig.AzureOpenAI.ApiKey);
 		return kernelBuilder.Build();
 	});
 
@@ -416,18 +443,29 @@ static async Task InitializeSampleData(IServiceProvider services)
 	try
 	{
 		logger.LogInformation("🚀 Initializing Hybrid Search API (BM25 + HyDE)");
-
-		// Check if OpenAI API key is configured
+		// Check if AI providers are configured
 		var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-		var openAiApiKey = configuration["OpenAI:ApiKey"];
+		var aiConfig = configuration.GetSection("AI").Get<AiConfiguration>() ?? new AiConfiguration();
+		
+		var hasOpenAi = !string.IsNullOrWhiteSpace(aiConfig.OpenAI.ApiKey);
+		var hasAzureOpenAi = !string.IsNullOrWhiteSpace(aiConfig.AzureOpenAI.ApiKey) && !string.IsNullOrWhiteSpace(aiConfig.AzureOpenAI.Endpoint);
+		var hasOllama = !string.IsNullOrWhiteSpace(aiConfig.Ollama.BaseUrl);
 
-		if (string.IsNullOrEmpty(openAiApiKey))
+		if (!hasOpenAi && !hasAzureOpenAi && !hasOllama)
 		{
-			logger.LogWarning("⚠️  OpenAI API key not configured. API will return mock responses for HyDE search.");
-			logger.LogInformation("To configure OpenAI API key:");
-			logger.LogInformation("  1. dotnet user-secrets set \"OpenAI:ApiKey\" \"your-api-key-here\"");
-			logger.LogInformation("  2. Or set environment variable: OpenAI__ApiKey=your-api-key-here");
+			logger.LogWarning("⚠️  No AI providers configured. API will return mock responses for HyDE search.");
+			logger.LogInformation("To configure AI providers:");
+			logger.LogInformation("  OpenAI: dotnet user-secrets set \"AI:OpenAI:ApiKey\" \"your-api-key-here\"");
+			logger.LogInformation("  Azure OpenAI: Configure ApiKey and Endpoint in AI:AzureOpenAI section");
+			logger.LogInformation("  Ollama: Ensure Ollama is running at http://localhost:11434");
 			logger.LogInformation("📝 BM25 keyword search will work without API keys");
+		}
+		else
+		{
+			logger.LogInformation($"🤖 AI Provider: {aiConfig.DefaultProvider}");
+			if (hasOpenAi) logger.LogInformation("✅ OpenAI configured");
+			if (hasAzureOpenAi) logger.LogInformation("✅ Azure OpenAI configured");
+			if (hasOllama) logger.LogInformation("✅ Ollama configured");
 		}
 
 		// Add sample documents

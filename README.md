@@ -9,7 +9,7 @@ A modern C#/.NET 9 **Web API** that intelligently combines **BM25 keyword search
 - **🤖 HyDE Semantic Search**: Advanced semantic search using hypothetical document generation and embeddings
 - **🌐 RESTful Web API**: ASP.NET Core minimal APIs with comprehensive OpenAPI/Swagger documentation
 - **⚡ High-Performance**: Uses `System.Numerics.Tensors` for efficient vector similarity calculations
-- **🔧 Flexible AI Providers**: Support for OpenAI and Ollama via Semantic Kernel with automatic fallback to mock services
+- **🔧 Flexible AI Providers**: Support for OpenAI, Azure OpenAI, and Ollama via Semantic Kernel with automatic fallback to mock services
 - **⚙️ Configurable**: Adjustable weights, normalization strategies, and search parameters
 - **🏗️ Modern Architecture**: Built with dependency injection, async/await, and nullable reference types
 - **📝 Comprehensive Logging**: Structured logging with detailed search metrics
@@ -75,14 +75,33 @@ curl -X POST "http://localhost:5000/api/search/hybrid" \
   -d '{"query": "neural networks", "maxResults": 5}'
 ```
 
-### 4. Optional: Configure OpenAI (for production)
-```bash
-# Using user secrets (recommended)
-dotnet user-secrets set "AI:OpenAI:ApiKey" "your-openai-api-key"
+### 4. Optional: Configure AI Providers (for production)
 
-# Or environment variable
-export AI__OpenAI__ApiKey="your-openai-api-key"
+**OpenAI:**
+```bash
+dotnet user-secrets set "AI:DefaultProvider" "OpenAI"
+dotnet user-secrets set "AI:OpenAI:ApiKey" "your-openai-api-key"
 ```
+
+**Azure OpenAI:**
+```bash
+dotnet user-secrets set "AI:DefaultProvider" "AzureOpenAI"
+dotnet user-secrets set "AI:AzureOpenAI:ApiKey" "your-azure-openai-api-key"
+dotnet user-secrets set "AI:AzureOpenAI:Endpoint" "https://your-resource.openai.azure.com/"
+```
+
+**Ollama (local):**
+```bash
+# Install and start Ollama
+ollama serve
+ollama pull nomic-embed-text
+ollama pull llama3.2
+
+# Configure application
+dotnet user-secrets set "AI:DefaultProvider" "Ollama"
+```
+
+See [Azure OpenAI Configuration Guide](docs/Azure-OpenAI-Configuration.md) for detailed setup instructions.
 
 ## ⚙️ Configuration
 
@@ -97,6 +116,13 @@ The system automatically detects available AI providers and falls back gracefull
       "ApiKey": "",
       "EmbeddingModel": "text-embedding-3-small",
       "CompletionModel": "gpt-4o-mini"
+    },
+    "AzureOpenAI": {
+      "ApiKey": "",
+      "Endpoint": "https://your-resource-name.openai.azure.com/",
+      "EmbeddingDeploymentName": "text-embedding-3-small",
+      "CompletionDeploymentName": "gpt-4o-mini",
+      "ApiVersion": "2024-02-01"
     },
     "Ollama": {
       "BaseUrl": "http://localhost:11434",
