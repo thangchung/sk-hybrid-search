@@ -6,6 +6,7 @@ namespace HydeSearch.Configuration;
 public class AiConfiguration
 {
     public OpenAiConfiguration OpenAI { get; set; } = new();
+    public AzureOpenAiConfiguration AzureOpenAI { get; set; } = new();
     public OllamaConfiguration Ollama { get; set; } = new();
     public string DefaultProvider { get; set; } = "OpenAI";
 }
@@ -31,6 +32,19 @@ public class OllamaConfiguration
     public string BaseUrl { get; set; } = "http://localhost:11434";
     public string EmbeddingModel { get; set; } = "nomic-embed-text";
     public string CompletionModel { get; set; } = "llama3.2";
+    public int MaxTokens { get; set; } = 1000;
+    public float Temperature { get; set; } = 0.7f;
+}
+
+/// <summary>
+/// Configuration for Azure OpenAI integration
+/// </summary>
+public class AzureOpenAiConfiguration
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string Endpoint { get; set; } = string.Empty;
+    public string EmbeddingDeploymentName { get; set; } = "text-embedding-3-small";
+    public string CompletionDeploymentName { get; set; } = "gpt-4o-mini";
     public int MaxTokens { get; set; } = 1000;
     public float Temperature { get; set; } = 0.7f;
 }
